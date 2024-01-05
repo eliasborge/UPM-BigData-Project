@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 
-from data_processor import DataReaderHDFS, DataReaderLocalFS, DataReader
+from data_processor import DataReaderHDFS, DataReaderLocalFS, DataReader, DataProcessor
 
 DATA_SOURCE = "LOCAL"
 HDFS_SERVER_ADDRESS = "hdfs://localhost:9000"
@@ -31,6 +31,12 @@ if __name__ == "__main__":
 	list_of_files = data_reader.get_list_of_files()
 	print(list_of_files)
 
-	in_file = data_reader.read_all_files()
-	for line in in_file.take(10):
+	data = data_reader.read_all_files()
+	for line in data.take(10):
 		print(line)
+
+	data_processor = DataProcessor(input_data=data)
+	data_processor.remove_forbidden_columns()
+	data_parsed = data_processor.get_dataframe()
+	print(data.printSchema())
+	print(data_parsed.printSchema())
