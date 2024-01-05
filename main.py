@@ -31,6 +31,6 @@ if __name__ == "__main__":
 	list_of_files = data_reader.get_list_of_files()
 	print(list_of_files)
 
-	in_file = data_reader.read_file(list_of_files[0])
+	in_file = data_reader.read_all_files()
 	for line in in_file.take(10):
 		print(line)

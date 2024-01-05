@@ -2,7 +2,7 @@ from os import listdir
 from os.path import isfile, join
 
 from abc import ABC
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, DataFrame
 
 
 class DataReader(ABC):
@@ -13,8 +13,26 @@ class DataReader(ABC):
 		"""
 		pass
 
-	def read_file(self, filename_str):
+	def read_file(self, filename_str) -> DataFrame:
+		"""
+		Returns pyspark DataFrame object containing data from file of given filename
+		:param filename_str: name of file to be read
+		:return: file content as pyspark DataFrame
+		"""
 		pass
+
+	def read_all_files(self) -> DataFrame | None:
+		"""
+		Returns pyspark DataFrame object containing data from all files found by data reader in the location
+		:return: files content as pyspark DataFrame
+		"""
+		filenames = self.get_list_of_files()
+		if len(filenames) == 0:
+			return None
+		df_from_csv: DataFrame = self.read_file(filename_str=filenames[0])
+		for filename in filenames[1:]:
+			df_from_csv = df_from_csv.union(self.read_file(filename_str=filename))
+		return df_from_csv
 
 
 class DataReaderLocalFS(DataReader):
@@ -33,10 +51,8 @@ class DataReaderLocalFS(DataReader):
 			for f in listdir(self.directory_path) if isfile(join(self.directory_path, f))
 		]
 
-	def read_file(self, filename_str):
+	def read_file(self, filename_str) -> DataFrame:
 		df_from_csv = self.session.read.options(header='True', inferSchema='True', delimiter=',').csv(filename_str)
-		df_from_csv.printSchema()
-		df_from_csv.show()
 		return df_from_csv
 
 
@@ -63,7 +79,6 @@ class DataReaderHDFS(DataReader):
 
 		return [fileStatus.getPath().toUri().getRawPath() for fileStatus in status if fileStatus.isFile()]
 
-	def read_file(self, filename_str):
+	def read_file(self, filename_str) -> DataFrame:
 		df_from_csv = self.session.read.options(header='True', inferSchema='True', delimiter=',').csv(self.server_address + filename_str)
-		df_from_csv.printSchema()
 		return df_from_csv
