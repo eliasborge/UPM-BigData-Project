@@ -1,6 +1,4 @@
-from os import listdir
-from os.path import isfile, join
-
+import os
 from abc import ABC
 from pyspark.sql import SparkSession, DataFrame
 
@@ -47,8 +45,8 @@ class DataReaderLocalFS(DataReader):
 
 	def get_list_of_files(self) -> list[str]:
 		return [
-			join(self.directory_path, f)
-			for f in listdir(self.directory_path) if isfile(join(self.directory_path, f))
+			os.path.join(self.directory_path, f)
+			for f in os.listdir(self.directory_path) if os.path.isfile(os.path.join(self.directory_path, f))
 		]
 
 	def read_file(self, filename_str) -> DataFrame:
@@ -82,3 +80,22 @@ class DataReaderHDFS(DataReader):
 	def read_file(self, filename_str) -> DataFrame:
 		df_from_csv = self.session.read.options(header='True', inferSchema='True', delimiter=',').csv(self.server_address + filename_str)
 		return df_from_csv
+
+
+class DataReaderManager:
+	@classmethod
+	def get_data_reader(cls, spark_session: SparkSession) -> DataReader:
+		if os.getenv("DATA_SOURCE") == "HDFS":
+			data_reader = DataReaderHDFS(
+				spark_session=spark_session,
+				server_address=os.getenv("HDFS_SERVER_ADDRESS"),
+				directory_path=os.getenv("HDFS_DATA_DIRECTORY_PATH")
+			)
+		elif os.getenv("DATA_SOURCE") == "LOCAL":
+			data_reader = DataReaderLocalFS(
+				spark_session=spark_session,
+				directory_path=os.getenv("LOCAL_DATA_DIRECTORY_PATH")
+			)
+		else:
+			raise ValueError(f"Unknown data source: {os.getenv('DATA_SOURCE')}")
+		return data_reader
