@@ -1,6 +1,7 @@
 import os
 from abc import ABC
 from pyspark.sql import SparkSession, DataFrame
+from .const import CSV_SCHEMA
 
 
 class DataReader(ABC):
@@ -50,7 +51,7 @@ class DataReaderLocalFS(DataReader):
 		]
 
 	def read_file(self, filename_str) -> DataFrame:
-		df_from_csv = self.session.read.options(header='True', inferSchema='True', delimiter=',').csv(filename_str)
+		df_from_csv = self.session.read.csv(filename_str, header='True', schema=CSV_SCHEMA)
 		return df_from_csv
 
 
