@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 from pyspark.ml.evaluation import RegressionEvaluator
-from pyspark.ml.feature import VectorAssembler, StringIndexer, Imputer
+from pyspark.ml.feature import VectorAssembler, StringIndexer, Imputer, UnivariateFeatureSelector
 from pyspark.ml.regression import LinearRegression
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, isnan
@@ -8,6 +8,7 @@ from pyspark.sql.functions import col, isnan
 from data_processor import DataReaderManager, DataProcessor
 
 load_dotenv()
+
 
 if __name__ == "__main__":
 	spark_session = SparkSession.builder.getOrCreate()
@@ -41,15 +42,21 @@ if __name__ == "__main__":
 	assembler = VectorAssembler(inputCols=feature_columns, outputCol="features", handleInvalid="skip")
 	vectorized_df = assembler.transform(data_parsed)
 
+	selector = UnivariateFeatureSelector(featuresCol="features", outputCol="selectedFeatures",
+										 labelCol="ArrDelay", selectionMode="fpr").setSelectionThreshold(0.05)
+	selector.setFeatureType("continuous").setLabelType("continuous").setSelectionThreshold(1)
+
+	result = selector.fit(vectorized_df).transform(vectorized_df)
+
 	# Split the data into training and test sets
-	train_data, test_data = vectorized_df.randomSplit([0.8, 0.2], seed=42)
+	train_data, test_data = result.randomSplit([0.8, 0.2], seed=42)
 
 	# Check for nulls in the label column again after splitting
 	if train_data.filter(col("ArrDelay").isNull()).count() > 0 or train_data.filter(isnan(col("ArrDelay"))).count() > 0:
 		raise ValueError("The label column still contains null or NaN values after preprocessing.")
 
 	if train_data.count() > 0:
-		lr = LinearRegression(featuresCol="features", labelCol="ArrDelay")
+		lr = LinearRegression(featuresCol="selectedFeatures", labelCol="ArrDelay")
 		lr_model = lr.fit(train_data)
 
 		# Make predictions
@@ -59,7 +66,7 @@ if __name__ == "__main__":
 		raise Exception("No valid data to train on.")
 
 	# Show predictions
-	predictions.select("prediction", "ArrDelay", "features").show()
+	predictions.select("prediction", "ArrDelay", "selectedFeatures").show()
 
 	# Evaluate the model
 	evaluator = RegressionEvaluator(labelCol="ArrDelay", predictionCol="prediction", metricName="rmse")
