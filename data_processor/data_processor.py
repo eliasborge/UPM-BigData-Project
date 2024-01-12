@@ -40,6 +40,9 @@ class DataProcessor:
 		"""
 		Converts a datetime provided as separate values into timestamp. Timezone does not really make a difference,
 		as long as all dates are converted into the same timezone.
+		Some <time> formats are incorrect having less than 4 digits. In this case, <time> is filled with zeros at the
+		beginning of the string to match the desired length=4. Midnight is defined as 24, not 00, which is not accepted
+		by datetime constructor, so conversion is being made using modulo.
 		:param year: int value for year
 		:param month: int value for month
 		:param day: int value for day
@@ -47,4 +50,4 @@ class DataProcessor:
 		:return: timestamp in seconds
 		"""
 		time = time.zfill(4)
-		return datetime(year=year, month=month, day=day, hour=int(time[:2]), minute=int(time[2:])).timestamp()
+		return datetime(year=year, month=month, day=day, hour=int(time[:2]) % 24, minute=int(time[2:])).timestamp()

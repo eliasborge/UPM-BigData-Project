@@ -10,7 +10,7 @@ CSV_SCHEMA = StructType([
 	StructField("ArrTime", StringType(), True),
 	StructField("CRSArrTime", StringType(), True),
 	StructField("UniqueCarrier", StringType(), True),
-	StructField("FlightNum", StringType(), True),
+	StructField("FlightNum", IntegerType(), True),
 	StructField("TailNum", StringType(), True),
 	StructField("ActualElapsedTime", IntegerType(), True),
 	StructField("CRSElapsedTime", IntegerType(), True),
