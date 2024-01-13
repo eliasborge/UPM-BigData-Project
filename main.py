@@ -48,7 +48,11 @@ if __name__ == "__main__":
 	selector = UnivariateFeatureSelector(featuresCol="features", outputCol="selectedFeatures",
 										 labelCol="ArrDelay", selectionMode="fpr")
 	selector.setFeatureType("continuous").setLabelType("continuous").setSelectionThreshold(0.05)
-	selected_df = selector.fit(vectorized_df).transform(vectorized_df)
+	selector_model = selector.fit(vectorized_df)
+	selected_df = selector_model.transform(vectorized_df)
+
+	selected_feature_names = [feature_columns[i] for i in selector_model.selectedFeatures]
+	print("Selected feature names:", selected_feature_names)
 
 	# Split the data into training and test sets
 	train_data, test_data = selected_df.randomSplit([0.8, 0.2], seed=42)
