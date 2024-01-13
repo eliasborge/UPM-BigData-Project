@@ -68,4 +68,4 @@ class DataProcessor:
 		:return: timestamp in seconds
 		"""
 		time = time.zfill(4)
-		return datetime(year=year, month=month, day=day, hour=int(time[:2]) % 24, minute=int(time[2:])).timestamp()
+		return datetime(year=year, month=month, day=day, hour=int(time[:2]) % 24, minute=int(time[2:]) % 60).timestamp()

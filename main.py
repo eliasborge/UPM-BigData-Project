@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
 	# fill nulls with mean for empty numeric values
 	numeric_cols = ['DepTime_timestamp', 'CRSDepTime_timestamp', 'CRSArrTime_timestamp', 'FlightNum', 'CRSElapsedTime',
-					'DepDelay', 'Distance', 'ArrDelay']
+					'DepDelay', 'Distance', 'ArrDelay', "TaxiOut"]
 	imputer = Imputer(inputCols=numeric_cols, outputCols=numeric_cols).setStrategy("mean")
 	data_parsed = imputer.fit(data_parsed).transform(data_parsed)
 
@@ -37,7 +37,7 @@ if __name__ == "__main__":
 	# Define feature columns to be used as independent variables. Dependent variable is ArrDelay
 	feature_columns = [
 		'DayOfWeek', 'DepTime_timestamp', 'CRSDepTime_timestamp', 'CRSArrTime_timestamp', 'FlightNum', 'CRSElapsedTime',
-		'DepDelay', 'Distance', 'UniqueCarrier_index', 'TailNum_index', 'Origin_index', 'Dest_index'
+		'DepDelay', 'Distance', 'UniqueCarrier_index', 'TailNum_index', 'Origin_index', 'Dest_index', 'TaxiOut'
 	]
 
 	# Assemble features into a vector
