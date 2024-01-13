@@ -79,7 +79,7 @@ class DataReaderHDFS(DataReader):
 		return [fileStatus.getPath().toUri().getRawPath() for fileStatus in status if fileStatus.isFile()]
 
 	def read_file(self, filename_str) -> DataFrame:
-		df_from_csv = self.session.read.options(header='True', inferSchema='True', delimiter=',').csv(self.server_address + filename_str)
+		df_from_csv = self.session.read.csv(self.server_address + filename_str, header='True', schema=CSV_SCHEMA)
 		return df_from_csv
 
 
