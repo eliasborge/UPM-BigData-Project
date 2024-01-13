@@ -12,27 +12,29 @@ load_dotenv()
 
 if __name__ == "__main__":
 	spark_session = SparkSession.builder.getOrCreate()
+
+	# load data
 	data_reader = DataReaderManager.get_data_reader(spark_session=spark_session)
 	data = data_reader.read_all_files()
 
+	# initial data processing
 	data_processor = DataProcessor(input_data=data)
 	data_parsed = data_processor.get_processed()
 
-	# Cast string columns to numeric types
+	# fill nulls with mean for empty numeric values
 	numeric_cols = ['DepTime_timestamp', 'CRSDepTime_timestamp', 'CRSArrTime_timestamp', 'FlightNum', 'CRSElapsedTime',
 					'DepDelay', 'Distance', 'ArrDelay']
 	imputer = Imputer(inputCols=numeric_cols, outputCols=numeric_cols).setStrategy("mean")
 	data_parsed = imputer.fit(data_parsed).transform(data_parsed)
 
-	# Index categorical columns
+	# convert categorical attributes
 	categorical_cols = ['UniqueCarrier', 'TailNum', 'Origin', 'Dest']
-	indexer_models = [StringIndexer(inputCol=col, outputCol=f"{col}_index", handleInvalid="skip").fit(data_parsed) for col in categorical_cols]
-
-	# Apply indexers to the DataFrame
+	indexer_models = [StringIndexer(inputCol=col, outputCol=f"{col}_index", handleInvalid="skip").fit(data_parsed)
+					  for col in categorical_cols]
 	for model in indexer_models:
 		data_parsed = model.transform(data_parsed)
 
-	# Define feature columns excluding 'ArrDelay' and original categorical columns
+	# Define feature columns to be used as independent variables. Dependent variable is ArrDelay
 	feature_columns = [
 		'DayOfWeek', 'DepTime_timestamp', 'CRSDepTime_timestamp', 'CRSArrTime_timestamp', 'FlightNum', 'CRSElapsedTime',
 		'DepDelay', 'Distance', 'UniqueCarrier_index', 'TailNum_index', 'Origin_index', 'Dest_index'
@@ -42,36 +44,38 @@ if __name__ == "__main__":
 	assembler = VectorAssembler(inputCols=feature_columns, outputCol="features", handleInvalid="skip")
 	vectorized_df = assembler.transform(data_parsed)
 
+	# Select features
 	selector = UnivariateFeatureSelector(featuresCol="features", outputCol="selectedFeatures",
-										 labelCol="ArrDelay", selectionMode="fpr").setSelectionThreshold(0.05)
-	selector.setFeatureType("continuous").setLabelType("continuous").setSelectionThreshold(1)
-
-	result = selector.fit(vectorized_df).transform(vectorized_df)
+										 labelCol="ArrDelay", selectionMode="fpr")
+	selector.setFeatureType("continuous").setLabelType("continuous").setSelectionThreshold(0.05)
+	selected_df = selector.fit(vectorized_df).transform(vectorized_df)
 
 	# Split the data into training and test sets
-	train_data, test_data = result.randomSplit([0.8, 0.2], seed=42)
+	train_data, test_data = selected_df.randomSplit([0.8, 0.2], seed=42)
 
 	# Check for nulls in the label column again after splitting
 	if train_data.filter(col("ArrDelay").isNull()).count() > 0 or train_data.filter(isnan(col("ArrDelay"))).count() > 0:
 		raise ValueError("The label column still contains null or NaN values after preprocessing.")
 
+	# Train a model
 	if train_data.count() > 0:
 		lr = LinearRegression(featuresCol="selectedFeatures", labelCol="ArrDelay")
 		lr_model = lr.fit(train_data)
 
-		# Make predictions
 		predictions = lr_model.transform(test_data)
-		# ... [The rest of your model prediction and evaluation code] ...
 	else:
 		raise Exception("No valid data to train on.")
 
-	# Show predictions
-	predictions.select("prediction", "ArrDelay", "selectedFeatures").show()
-
 	# Evaluate the model
-	evaluator = RegressionEvaluator(labelCol="ArrDelay", predictionCol="prediction", metricName="rmse")
-	rmse = evaluator.evaluate(predictions)
+	rmse_evaluator = RegressionEvaluator(labelCol="ArrDelay", predictionCol="prediction", metricName="rmse")
+	r2_evaluator = RegressionEvaluator(labelCol="ArrDelay", predictionCol="prediction", metricName="r2")
+
+	rmse = rmse_evaluator.evaluate(predictions)
+	r2 = r2_evaluator.evaluate(predictions)
+
+	print()
 	print("Root Mean Squared Error (RMSE) on test data =", rmse)
+	print("R-squared on test data =", r2)
 
 	# Stop the SparkSession
 	spark_session.stop()
